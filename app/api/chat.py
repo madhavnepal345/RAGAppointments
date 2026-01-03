@@ -11,8 +11,8 @@ from app.models.schemas import (
     BookingResponse,
     ErrorResponse
 )
-from app.db.database import get_db
-from app.db.models import InterviewBooking, ChatHistory
+from app.database.database import get_db
+from app.database.models import InterviewBooking, ChatHistory
 from app.services.rag import get_rag_service
 
 
