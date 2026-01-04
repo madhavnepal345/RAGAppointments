@@ -1,70 +1,93 @@
+"""
+Pydantic models for request/response validation.
+"""
+from typing import List, Optional, Literal
 from datetime import datetime
-from typing import Optional,Dict,Any,Literal,List
-from pydantic import BaseModel,Field,EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
+#  Document Ingestion Schemas 
 
-class DocumentUpload(Basemodel):
-    chunking_strategy:Literal['recursive','semantic']=Field(
-        default="recursive",
-        description="chunking strategy to be used for document processing"
+class DocumentIngestionRequest(BaseModel):
+    """Request model for document ingestion."""
+    chunking_strategy: Literal["fixed", "semantic"] = Field(
+        default="fixed",
+        description="Chunking strategy to use: 'fixed' or 'semantic'"
     )
-    metadata:Optional[Dict[str,Any]]=Field(default_factory=dict)
-
-class ChunkingConfig(BaseModel):
-    chunk_size:int=Field(default=1000,le=5000)
-    chunk_overlap:int=Field(default=200,ge=0, le=1000)
 
 
-class DocumentResponse(BaseModel):
-    document_id:str
-    filename:str
-    file_type:str
-    uploaded_date:datetime
-    chunking_strategy:str
-    num_chunks:int
-    metadata:Dict[str,Any]
+class DocumentIngestionResponse(BaseModel):
+    """Response model for document ingestion."""
+    document_id: str
+    filename: str
+    chunks_count: int
+    status: str
+    message: str
+    chunking_strategy: str
+    
+    model_config = {"from_attributes": True}
 
 
-#Schema of RAG
-
-class ConversationMessage(BaseModel):
-    role:Literal["user","assistant"]
-    content:str
-    timestamp:datetime=Field(default_factory=datetime.utcnow)
-
+# Chat/RAG Schemas
 
 class ChatRequest(BaseModel):
-    conversation_id:Optional[str]=Field(
-        default=None,
-        description="Existing conversation ID"
-        )
-    query:str=Field(...,min_length=1)
-    use_rag:bool=Field(default=True)
-    top_k:int=Field(default=5,ge=1,le=20)
+    """Request model for chat/RAG endpoint."""
+    query: str = Field(..., min_length=1, description="User query")
+    session_id: str = Field(..., description="Session ID for conversation context")
+    user_id: Optional[str] = Field(None, description="Optional user identifier")
+
+
+class Source(BaseModel):
+    """Source document information."""
+    document_id: str
+    filename: str
+    chunk_text: str
+    relevance_score: float
+
 
 class ChatResponse(BaseModel):
-    conversation_id: str
+    """Response model for chat/RAG endpoint."""
     answer: str
-    sources: List[Dict[str, Any]] = Field(default_factory=list)
-    requires_booking: bool = Field(default=False)
-    booking_intent: Optional[str] = None
+    sources: List[Source]
+    session_id: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
-class InterviewBookingRequest(BaseModel):
-    conversation_id: str
-    candidate_name: str
-    candidate_email: EmailStr
-    interview_date: datetime
-    timezone: str = Field(default="UTC")
-    additional_notes: Optional[str] = None
+# Interview Booking Schemas 
+
+class BookingRequest(BaseModel):
+    """Request model for interview booking."""
+    name: str = Field(..., min_length=1, description="Candidate name")
+    email: EmailStr = Field(..., description="Candidate email")
+    date: str = Field(..., description="Interview date (YYYY-MM-DD)")
+    time: str = Field(..., description="Interview time (HH:MM)")
+    session_id: str = Field(..., description="Session ID")
 
 
-class InterviewBookingResponse(BaseModel):
+class BookingResponse(BaseModel):
+    """Response model for interview booking."""
     booking_id: str
-    conversation_id: str
-    candidate_name: str
-    candidate_email: EmailStr
-    interview_date: datetime
+    name: str
+    email: str
+    date: str
+    time: str
     status: str
-    scheduled_at: datetime
+    message: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    model_config = {"from_attributes": True}
+
+
+# Generic Responses
+
+class ErrorResponse(BaseModel):
+    """Error response model."""
+    error: str
+    detail: Optional[str] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class HealthResponse(BaseModel):
+    """Health check response."""
+    status: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
